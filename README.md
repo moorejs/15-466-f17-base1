@@ -1,29 +1,36 @@
-NOTE: please fill in the first section with information about your game.
+# Escape the Courtyard
 
-# *Game Title*
-
-*Game Title* is *Your Name*'s implementation of [*Design Document*](http://graphics.cs.cmu.edu/courses/15-466-f17/game1-designs/put-real-link-here) for game1 in 15-466-f17.
+Escape the Courtyard is Jared Moore's implementation of [*Make and Escape*](http://graphics.cs.cmu.edu/courses/15-466-f17/game1-designs/hungyuc/) for game1 in 15-466-f17.
 
 *Include a Screenshot Here*
 
-## Build Notes
-
-*Include any special notes or steps required to build your game here. If there are no special notes, delete this section.*
-
 ## Asset Pipeline
 
-*Briefly describe the asset pipeline for this game. What sorts of source files are used? How are they processed? How are they loaded?*
+For this game, I built an asset pipeline with a NodeJS script. It would listen for changes to files for files in multiple directories (given as command line arguments).
+
+When a .xcf file changes, it runs a command to make a .png of that file. When a .info file changes, it writes a binary file (.file) containing a header with the size of the binary file and then the data. The data is expected to be 6 comma separated float values per line and is supposed to be the texture atlas mapping (minx, miny, maxx, maxy, centerx, centery). The center was never used. Some fluff was also allowed on each line but is parsed out. This was somewhat cumbersome and something I would like to change in the future. When a .cpp file changes, the code is compiled and the current process is kill and started anew. This didn't work so well so I didn't use it much.
+
+The .file was processed using `std::ifstream.read` all at once.
 
 ## Architecture
 
-*Provide a brief introduction to how you implemented the design. Talk about the basic structure of your code.*
+Keypresses were tracked using SDL's `GetKeyboardState`. Each frame they were copied into another array `prevKeys` so that one could easily see detect the first frame someone pressed or let go of a key (e.g. `!prevKeys[...A] && keys[...A]`).
+
+My code used `Circle`s for area's that player could interact with. `BoundedBox`es were useful for doing collisions. Both these structs had a `contains` method that was convenient.
+
+`Object`s contain sprites, position, bounding box, and size.
+
+A major of the code is dealing with `Item`s. Each of the three segments of the map have their own set of `Item`s. An item has a `Circle` for interaction (picking up), a field tracking what is added to the crafting inventory at the workbench if the items is brought there, and an `Object`. The player may hold one item at a time.
+
+The crafting inventory was implemented with a enum bitfield which was not necessary but kind of cool.
 
 ## Reflection
 
-*Reflect on the assignment. What was difficult? What worked well? If you were doing it again, what would you change?*
+One thing that was difficult was managing all of the items/sprites. It was a lot of work to make them interactable and placed in the right places around the map. That was made even more difficult when it was necessary that the player carried them and could go from one part of the map to another. If I had more time, I could have made a cleaner system for how items were handled in general.
 
-*Reflect on the design document. What was clear and what was ambiguous? How did you resolve the ambiguities?*
+I would automate the placement of bounding box collision areas somehow, maybe using an black and white image. Additionally, as I said before, I would make the pipeline more automated (maybe have something that can find the minx,miny etc. based on alpha in the images) because specifying the textures positions was cumbersome, especially before I added pixel support.
 
+The design document was pretty clear, except for the fact that it left out where to place the items used for the crafting workbench. I decided to scatter these throughout the various segments of the map. Additionally, there was no walking animation provided, so it didn't turn out looking great. Doing the outline for interaction as specified by the design was not something I found feasible so I left that out.
 
 # About Base1
 

@@ -70,6 +70,47 @@ const onChange = {
         process.stderr.write(`main-stderr: \x1b[4m\x1b[31m${err}\x1b[0m`)
       );
     });
+  },
+  ".info": ({ fullpath, directory, name }) => {
+    const { Transform } = require("stream");
+
+    fs.readFile(fullpath, (err, data) => {
+      let input = data.toString();
+      input = input.split(/\n/).map(line => {
+        // test: (0.0, 0.4),2.0 ==> 0.0, 0.4,2.0 ==> [0.0, 0.4, 2.0]
+        const stripped = line.replace(/\(|\)|.*: /g, "");
+        return stripped.split(/, ?/);
+      });
+
+      const HEADER_BYTES = 8;
+      const FLOAT_BYTES = 4;
+      const FLOATS_PER_LINE = 6;
+      const out = Buffer.alloc(HEADER_BYTES + FLOAT_BYTES * FLOATS_PER_LINE * input.length);
+
+      let offset = HEADER_BYTES;
+      input.forEach(row =>
+        row.forEach(val => {
+          if (/.*\..*/.test(val)) {
+            out.writeFloatLE(val, offset);
+          } else {
+            if (/.*w$/.test(val)) {
+              console.log("writing " + val + " to " + val.slice(0, val.length - 1) / 320);
+              out.writeFloatLE(val.slice(0, val.length - 1) / 320, offset);
+            } else {
+              console.log("writing " + val + " to " + (1-(val / 240)));
+              out.writeFloatLE(1-(val / 240), offset);
+            }
+          }
+          offset += FLOAT_BYTES;
+        })
+      );
+
+      out.writeUInt32LE(offset - HEADER_BYTES, 0);
+
+      fs.writeFile(path.resolve(directory, name) + ".file", out, "binary", err => {
+        console.log("Done\n");
+      });
+    });
   }
 };
 
