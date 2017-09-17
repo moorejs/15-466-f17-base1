@@ -88,15 +88,15 @@ enum class Workbench : uint32_t {
 	HAS_KNIFE = (1 << 4),
 	HAS_ROD = (1 << 5)
 };
-constexpr enum Workbench operator|(const enum Workbench self, const enum Workbench other) {
+enum Workbench operator|(const enum Workbench self, const enum Workbench other) {
 	return (enum Workbench)(uint32_t(self) | uint32_t(other));
 }
-constexpr enum Workbench operator&(const enum Workbench self, const enum Workbench other) {
+enum Workbench operator&(const enum Workbench self, const enum Workbench other) {
 	return (enum Workbench)(uint32_t(self) & uint32_t(other));
 }
-const enum Workbench CAN_BUILD_BRIDGE = Workbench::HAS_BOARDS & Workbench::HAS_ROPE;
-const enum Workbench CAN_BUILD_PICKAXE = Workbench::HAS_PICK_HEAD & Workbench::HAS_STICK;
-const enum Workbench CAN_BUILD_KNIFE = Workbench::HAS_KNIFE & Workbench::HAS_ROD;
+const enum Workbench CAN_BUILD_BRIDGE = Workbench::HAS_BOARDS | Workbench::HAS_ROPE;
+const enum Workbench CAN_BUILD_PICKAXE = Workbench::HAS_PICK_HEAD | Workbench::HAS_STICK;
+const enum Workbench CAN_BUILD_KNIFE = Workbench::HAS_KNIFE | Workbench::HAS_ROD;
 
 // Code inspired from
 // https://github.com/ixchow/15-466-f17-base2/blob/bbda559b9156f5b539f6fab33f45fa684325d6c2/Meshes.cpp
@@ -373,7 +373,6 @@ int main(int argc, char** argv) {
 
 	Circle workbench = Circle({12.25f, -15.0f}, 8.0f);
 	Workbench workbenchState = Workbench::EMPTY;
-	(void)workbenchState;
 	hints[MAP_MIDDLE].emplace_back(workbench, "FIND SOMETHING TO BUILD");
 
 	std::map<SpriteInfo, std::vector<BoundingBox>> mapCollisions = {{MAP_RIGHT, {}}, {MAP_LEFT, {}}, {MAP_MIDDLE, {}}};
@@ -435,7 +434,7 @@ int main(int argc, char** argv) {
 
 	Circle leftPillar({-3.5f, 0.0f}, 2.0f);
 	Circle topPillar({0.0f, 3.5f}, 2.0f);
-	Circle rightPillar({3.5f, 0.0f}, 2.0f);
+	Circle rightPillar({4.0f, 0.0f}, 2.0f);
 	Circle bottomPillar({0.0f, -3.5f}, 2.0f);
 
 	Item* playerItem = nullptr;
@@ -463,6 +462,22 @@ int main(int argc, char** argv) {
 		Object({0.0f, 0.0f}, {0.7f, 0.5f}, load_sprite(BOARDS), BoundingBox({0.0f, 0.0f}, {0.0f, 0.0f})),
 		Circle({0.0f, 0.0f}, 0.75f), Workbench::HAS_BOARDS);
 
+	items[MAP_LEFT].emplace_back(
+		Object({4.0f, -4.0f}, {0.5f, 0.1f}, load_sprite(STICK), BoundingBox({0.0f, 0.0f}, {0.0f, 0.0f})),
+		Circle({4.0f, -4.0f}, 0.75f), Workbench::HAS_STICK);
+
+	items[MAP_MIDDLE].emplace_back(
+		Object({0.0f, 0.0f}, {0.3f, 0.5f}, load_sprite(KNIFE), BoundingBox({0.0f, 0.0f}, {0.0f, 0.0f})),
+		Circle({0.0f, 0.0f}, 0.75f), Workbench::HAS_KNIFE);
+
+	items[MAP_RIGHT].emplace_back(
+		Object({9.0f, 6.0f}, {0.7f, 0.5f}, load_sprite(ROD), BoundingBox({0.0f, 0.0f}, {0.0f, 0.0f})),
+		Circle({9.0f, 6.0f}, 0.75f), Workbench::HAS_ROD);
+
+	items[MAP_RIGHT].emplace_back(
+		Object({-3.0f, 3.0f}, {0.7f, 0.5f}, load_sprite(PICKAXE_HEAD), BoundingBox({0.0f, 0.0f}, {0.0f, 0.0f})),
+		Circle({-3.0f, 3.0f}, 0.75f), Workbench::HAS_PICK_HEAD);
+
 	Item door(Object({0.1f, 8.75f}, {1.5f, 2.5f}, load_sprite(DOOR), BoundingBox({0.0f, 0.0f}, {0.0f, 0.0f})),
 						Circle({0.0f, 0.0f}, 0.5f), Workbench::EMPTY);
 
@@ -479,13 +494,12 @@ int main(int argc, char** argv) {
 	map.radius = glm::vec2(16.0f, 12.0f);
 	map.sprite = load_sprite(currentMap);
 
-	bool hasPickaxe = true;
+	bool hasPickaxe = false;
 	bool hasBridge = false;
-	bool hasKnife = true;
+	bool hasKnife = false;
 
 	bool correctLeft = false;
 	bool correctRight = false;
-	bool correctMiddle = false;
 	bool correctTop = false;
 	bool correctBottom = false;
 
@@ -530,8 +544,6 @@ int main(int argc, char** argv) {
 		{	// update game state:
 			++random;
 
-			std::cout << player.at.x << " " << player.at.y << std::endl;
-
 			hintTimer += elapsed;
 
 			delta = glm::vec2(0.0f);
@@ -564,55 +576,72 @@ int main(int argc, char** argv) {
 				if (playerItem) {
 					if (currentMap == MAP_MIDDLE) {
 						if (workbench.contains(player.at)) {
+							workbenchState = workbenchState | playerItem->addition;
 							if (!hasBridge && (workbenchState & CAN_BUILD_BRIDGE) == CAN_BUILD_BRIDGE) {
 								hasBridge = true;
+								hint = "YOU MADE A BRIDGE";
+								hintTimer = 0.0f;
+								// move collision away
 								bridge.set({-100.0f, -100.0f}, {0.0f, 0.0f});
 							} else if (!hasKnife && (workbenchState & CAN_BUILD_KNIFE) == CAN_BUILD_KNIFE) {
 								hasKnife = true;
+								hint = "YOU MADE A LONG KNIFE";
+								hintTimer = 0.0f;
 							} else if (!hasPickaxe && (workbenchState & CAN_BUILD_PICKAXE) == CAN_BUILD_PICKAXE) {
 								hasPickaxe = true;
+								hint = "YOU MADE A PICKAXE";
+								hintTimer = 0.0f;
 							}
 
-							std::cout << "Crash?" << std::endl;
 							// hide old object and radius
 							playerItem->obj.radius.x = 0.0f;
 							playerItem->circle.radius = 0.0f;
 							playerItem = nullptr;
-							std::cout << "Cras..." << std::endl;
-							
 							done = true;
 						}
 
 						// get or set item on pillars
-						if (playerItem->name == "CRYSTAL" && bottomPillar.contains(player.at)) {
+						if (playerItem && playerItem->name == "CRYSTAL" && leftPillar.contains(player.at)) {
 							// hide old object and radius
 							playerItem->obj.radius.x = 0.0f;
 							playerItem->circle.radius = 0.0f;
 							playerItem = nullptr;
+
+							correctLeft = true;
+
 							done = true;
 						}
 
-						if (playerItem->name == "ROCK" && topPillar.contains(player.at)) {
+						if (playerItem && playerItem->name == "ROCK" && bottomPillar.contains(player.at)) {
 							// hide old object and radius
 							playerItem->obj.radius.x = 0.0f;
 							playerItem->circle.radius = 0.0f;
 							playerItem = nullptr;
+
+							correctBottom = true;
+
 							done = true;
 						}
 
-						if (playerItem->name == "COIN" && rightPillar.contains(player.at)) {
+						if (playerItem && playerItem->name == "COIN" && rightPillar.contains(player.at)) {
 							// hide old object and radius
 							playerItem->obj.radius.x = 0.0f;
 							playerItem->circle.radius = 0.0f;
 							playerItem = nullptr;
+
+							correctRight = true;
+
 							done = true;
 						}
 
-						if (playerItem->name == "APPLE" && leftPillar.contains(player.at)) {
+						if (playerItem && playerItem->name == "APPLE" && topPillar.contains(player.at)) {
 							// hide old object and radius
 							playerItem->obj.radius.x = 0.0f;
 							playerItem->circle.radius = 0.0f;
 							playerItem = nullptr;
+
+							correctTop = true;
+
 							done = true;
 						}
 					}
@@ -635,7 +664,7 @@ int main(int argc, char** argv) {
 					}
 
 					// cut apple
-					if (!done && currentMap == MAP_LEFT && hasKnife && treeCircle.contains(player.at)) {
+					if (!done && !correctTop && currentMap == MAP_LEFT && hasKnife && treeCircle.contains(player.at)) {
 						playerItem = &items[MAP_LEFT][0];
 						hint = "NICE FIND";
 						hintTimer = 0.0f;
@@ -643,7 +672,7 @@ int main(int argc, char** argv) {
 					}
 
 					// grab from scale
-					if (!done && currentMap == MAP_RIGHT && scale.circle.contains(player.at)) {
+					if (!done && !correctBottom && currentMap == MAP_RIGHT && scale.circle.contains(player.at)) {
 						scale.obj.sprite = load_sprite(SCALE_UNBALANCED);
 						items[MAP_RIGHT].emplace_back(Object(scale.circle.center, {0.5f, 0.5f},
 							load_sprite(ROCK), BoundingBox({0.0f, 0.0f}, {0.0f, 0.0f})),
@@ -675,7 +704,6 @@ int main(int argc, char** argv) {
 					} else {
 						hint = "FIND SOMETHING MEANINGFUL";
 					}
-					std::cout << random <<" " << random % 5 << std::endl;
 					hintTimer = 8.0f;	// start timer late because this hint sucks
 				}
 			}
@@ -688,7 +716,7 @@ int main(int argc, char** argv) {
 				}
 			}
 
-			if (bridge.contains(player.bounds)) {
+			if (currentMap == MAP_LEFT && bridge.contains(player.bounds)) {
 				delta.x = delta.y = 0.0f;
 			}
 
@@ -760,6 +788,12 @@ int main(int argc, char** argv) {
 
 			draw_sprite(map.sprite, map.radius, map.at);
 
+			bool win = correctLeft && correctRight && correctTop && correctBottom;
+
+			if (!win && currentMap == MAP_MIDDLE) {
+				draw_sprite(door.obj.sprite, door.obj.radius, door.obj.at);
+			}
+
 			if (currentMap == MAP_RIGHT && holeDug) {
 				draw_sprite(load_sprite(HOLE), {hole.radius + 0.5f, hole.radius + 0.2f}, hole.center);
 			}
@@ -782,11 +816,8 @@ int main(int argc, char** argv) {
 				draw_sprite(load_sprite(PLAYER), player.radius, player.at);
 			}
 
-			bool win = correctLeft && correctRight && correctMiddle && correctTop && correctBottom;
 			if (win) {
 				draw_word("YOU WIN", { -3.0f, -8.0f});
-			} else if (currentMap == MAP_MIDDLE) {
-				draw_sprite(door.obj.sprite, door.obj.radius, door.obj.at);
 			}
 
 			for (const Item& item : items[currentMap]) {
@@ -803,20 +834,22 @@ int main(int argc, char** argv) {
 				draw_sprite(load_sprite(LONG_KNIFE), {0.5f, 0.5f}, {-11.5f, 11.0f});
 			}
 
-			if (correctBottom) {
-				draw_sprite(load_sprite(CRYSTAL), {1.0f, 0.5f}, bottomPillar.center);
-			}
+			if (currentMap == MAP_MIDDLE) {
+				if (correctBottom) {
+					draw_sprite(load_sprite(ROCK), {0.65f, 0.65f}, bottomPillar.center);
+				}
 
-			if (correctRight) {
-				draw_sprite(load_sprite(COIN), {0.5f, 0.6f}, rightPillar.center);
-			}
+				if (correctRight) {
+					draw_sprite(load_sprite(COIN), {0.5f, 0.6f}, rightPillar.center);
+				}
 
-			if (correctLeft) {
-				draw_sprite(load_sprite(APPLE), {0.75f, 0.75f}, leftPillar.center);
-			}
+				if (correctLeft) {
+					draw_sprite(load_sprite(CRYSTAL), {0.3f, 0.6f}, leftPillar.center);
+				}
 
-			if (correctTop) {
-				draw_sprite(load_sprite(ROCK), {0.75f, 0.75f}, topPillar.center);
+				if (correctTop) {
+					draw_sprite(load_sprite(APPLE), {0.65f, 0.65f}, topPillar.center);
+				}
 			}
 
 			if (hintTimer < 10.0f) {
