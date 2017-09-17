@@ -2,7 +2,7 @@
 
 Escape the Courtyard is Jared Moore's implementation of [*Make and Escape*](http://graphics.cs.cmu.edu/courses/15-466-f17/game1-designs/hungyuc/) for game1 in 15-466-f17.
 
-*Include a Screenshot Here*
+![alt text](https://github.com/moorejs/15-466-f17-base1/blob/master/screenshots/hints.png?raw=true)
 
 ## Asset Pipeline
 
